@@ -220,7 +220,6 @@ def _validate_layout(new_dir: Path, helloworld: Path) -> None:
         "package/new/helloworld/luci-app-openclash/Makefile": helloworld / "luci-app-openclash" / "Makefile",
         "package/new/helloworld/luci-theme-argon/Makefile": helloworld / "luci-theme-argon" / "Makefile",
         "package/new/helloworld/luci-app-argon-config/Makefile": helloworld / "luci-app-argon-config" / "Makefile",
-        "package/new/helloworld/sing-box/Makefile": helloworld / "sing-box" / "Makefile",
         "package/new/helloworld/v2ray-geodata/Makefile": helloworld / "v2ray-geodata" / "Makefile",
         "package/new/luci-app-ota/Makefile": new_dir / "luci-app-ota" / "Makefile",
     }

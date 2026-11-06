@@ -2,17 +2,16 @@
 
 ## Unreleased
 
-- Drop `luci-app-passwall` and its translation package from the device config.
-  `luci-app-openclash` already covers the same job, and PassWall's `SingBox`
-  include was the only reason `sing-box` had to be pulled in twice.
+- Keep `luci-app-openclash` as the only proxy front end. `luci-app-passwall`,
+  `luci-app-homeproxy` and their translation packages are gone, and `sing-box`
+  went with them because homeproxy was its only dependent. Beside dropping two
+  duplicate proxy stacks, this also removes the `SING_BOX_BUILD_NAIVE_OUTBOUND`
+  / `libcronet` link failure that used to abort the aarch64 build at the
+  `Compile firmware` step.
 - Add `vlmcsd` and `luci-app-vlmcsd` (Chinese translation included) so the
   router can serve KMS activation for Windows and Office clients on the LAN.
-  Both are asserted in `REQUIRED_SELECTIONS`, so a silent `defconfig` drop now
-  fails the build instead of shipping an image without KMS.
-- Disable `SING_BOX_BUILD_NAIVE_OUTBOUND` in the device config. The `full`
-  sing-box variant defaults this to `y` on aarch64, but `libcronet` is not part
-  of the 25.12 feed any more, so the link step aborted the whole build with
-  `ld.bfd: cannot find -lcronet`.
+  Both packages are asserted in `REQUIRED_SELECTIONS`, so a silent `defconfig`
+  drop now fails the build instead of shipping an image without KMS.
 
 ## 2.0.0 — 2026-11-02
 

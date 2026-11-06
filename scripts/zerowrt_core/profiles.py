@@ -27,6 +27,10 @@ class Source:
     ships GCC 16 and a LuCI feed the five patches were refreshed against, while
     the 24.10 tree is GCC 14 and has a different LuCI. Both flags gate work that
     would otherwise fail on the tree it does not belong to.
+
+    ``ota`` says whether this tree's image carries ``luci-app-ota``. It is a
+    ZeroWrt addition, so a build that leaves it out must also skip the package
+    selection, the embedded metadata and the published index.
     """
 
     key: str
@@ -35,6 +39,7 @@ class Source:
     label: str
     gcc16: bool = True
     luci_patches: bool = True
+    ota: bool = True
 
 
 @dataclass(frozen=True)
@@ -68,7 +73,8 @@ SOURCES: dict[str, Source] = {
     # 6.6 kernel and already ships a ruijie_rg-x60-new device whose partition
     # map and sysupgrade format match the 25.12 mtkuboot layout, so images are
     # interchangeable. It is GCC 14 and its LuCI feed is a different vintage,
-    # hence both capability flags off.
+    # hence both capability flags off. Images from this tree are plain firmware
+    # without the OTA app, so ``ota`` is off as well.
     "immortalwrt-mtk-2410": Source(
         key="immortalwrt-mtk-2410",
         repo="wpm369079365/immortalwrt-mt798x-6.6",
@@ -76,6 +82,7 @@ SOURCES: dict[str, Source] = {
         label="ImmortalWrt 24.10 (MT798x 6.6, MTK wireless)",
         gcc16=False,
         luci_patches=False,
+        ota=False,
     ),
 }
 

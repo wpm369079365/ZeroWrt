@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from zerowrt_core import packages
+from zerowrt_core import packages, util
 
 
 class PackagesTest(unittest.TestCase):
@@ -55,6 +55,24 @@ class PackagesTest(unittest.TestCase):
         self._make("feeds/packages/net/v2ray-geodata/Makefile", "PKG_NAME:=v2ray-geodata\n")
         packages.prune_feed_conflicts(self.tree)
         self.assertFalse((self.tree / "feeds/packages/net/v2ray-geodata").exists())
+
+    def _write_layout(self) -> Path:
+        """Create the package/new layout add_external_packages validates."""
+        helloworld = self.tree / "package/new/helloworld"
+        for name in ("luci-app-openclash", "luci-theme-argon", "luci-app-argon-config", "v2ray-geodata"):
+            self._make(f"package/new/helloworld/{name}/Makefile", "PKG_NAME:=x\n")
+        for name in ("openlist2", "luci-app-openlist2"):
+            self._make(f"package/new/openlist/{name}/Makefile", "PKG_NAME:=x\n")
+        return helloworld
+
+    def test_layout_check_requires_the_ota_app_by_default(self) -> None:
+        helloworld = self._write_layout()
+        with self.assertRaises(util.BuildError):
+            packages._validate_layout(self.tree / "package/new", helloworld)
+
+    def test_layout_check_accepts_a_build_without_the_ota_app(self) -> None:
+        helloworld = self._write_layout()
+        packages._validate_layout(self.tree / "package/new", helloworld, with_ota=False)
 
 
 if __name__ == "__main__":

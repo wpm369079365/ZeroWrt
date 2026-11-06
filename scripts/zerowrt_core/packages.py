@@ -181,8 +181,13 @@ def _ensure_feed_links(tree: Path) -> None:
         link_path.symlink_to(os.path.relpath(target_path, link_path.parent))
 
 
-def add_external_packages(tree: Path) -> None:
-    """Clone the package set used by the device config into the source tree."""
+def add_external_packages(tree: Path, *, with_ota: bool = True) -> None:
+    """Clone the package set used by the device config into the source tree.
+
+    ``with_ota`` is False for source trees whose profile builds a plain image
+    without ``luci-app-ota``; the clone is skipped so nothing selects a package
+    that is not there.
+    """
     tree = Path(tree)
     new_dir = tree / "package" / "new"
     new_dir.mkdir(parents=True, exist_ok=True)
@@ -201,10 +206,13 @@ def add_external_packages(tree: Path) -> None:
     for name, (repo, ref) in DOCKER_REPOS.items():
         _replace_feed_dir(tree, Path("feeds/packages/utils") / name, repo, ref)
 
-    add_ota_app(tree)
+    if with_ota:
+        add_ota_app(tree)
+    else:
+        util.log("OTA app not requested for this profile; package/new/luci-app-ota stays empty")
     add_openlist(tree)
 
-    _validate_layout(new_dir, helloworld)
+    _validate_layout(new_dir, helloworld, with_ota=with_ota)
     # The feeds were installed before this step; prune what package/new owns so
     # the build cannot see a duplicate. Links for the replaced feed directories
     # are created here because no second `feeds install` runs.
@@ -239,7 +247,7 @@ def add_openlist(tree: Path) -> Path:
     return dest
 
 
-def _validate_layout(new_dir: Path, helloworld: Path) -> None:
+def _validate_layout(new_dir: Path, helloworld: Path, *, with_ota: bool = True) -> None:
     checks = {
         "package/new/helloworld/luci-app-openclash/Makefile": helloworld / "luci-app-openclash" / "Makefile",
         "package/new/helloworld/luci-theme-argon/Makefile": helloworld / "luci-theme-argon" / "Makefile",
@@ -249,8 +257,9 @@ def _validate_layout(new_dir: Path, helloworld: Path) -> None:
         "package/new/openlist/luci-app-openlist2/Makefile": (
             new_dir / "openlist" / "luci-app-openlist2" / "Makefile"
         ),
-        "package/new/luci-app-ota/Makefile": new_dir / "luci-app-ota" / "Makefile",
     }
+    if with_ota:
+        checks["package/new/luci-app-ota/Makefile"] = new_dir / "luci-app-ota" / "Makefile"
     missing = [name for name, path in checks.items() if not path.exists()]
     if missing:
         raise util.BuildError("unexpected repository layout, missing:\n  - " + "\n  - ".join(missing))

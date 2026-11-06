@@ -40,6 +40,18 @@ BAD_TOKENS = (
 HISTORY_LIMIT = 120
 HISTORY_CHANGELOG_LIMIT = 1200
 
+OTA_APP_DIR = Path("package") / "new" / "luci-app-ota"
+
+
+def app_present(tree: Path) -> bool:
+    """Is ``luci-app-ota`` part of this build?
+
+    Profiles on a source tree without the OTA app (``Source.ota`` False) never
+    clone it, so every OTA step has to stand down instead of writing metadata
+    for a package the image does not contain.
+    """
+    return (Path(tree) / OTA_APP_DIR).is_dir()
+
 
 def read_checksums(dist: Path) -> dict[str, str]:
     result: dict[str, str] = {}

@@ -118,7 +118,12 @@ def cmd_source_customize(args: argparse.Namespace) -> None:
 
 
 def cmd_packages_add(args: argparse.Namespace) -> None:
-    packages.add_external_packages(Path(args.tree))
+    device = args.device or settings.BuildSettings.from_environment().device
+    profile = profiles.find(device)
+    # An unknown profile keeps the historical behaviour; a known one decides
+    # whether this image carries the OTA app at all.
+    with_ota = True if profile is None else profiles.source(profile).ota
+    packages.add_external_packages(Path(args.tree), with_ota=with_ota)
 
 
 def cmd_packages_ota(args: argparse.Namespace) -> None:
@@ -153,6 +158,9 @@ def cmd_config_apply(args: argparse.Namespace) -> None:
 
 def cmd_ota_embed(args: argparse.Namespace) -> None:
     tree = Path(args.tree)
+    if not ota.app_present(tree):
+        util.log("luci-app-ota is not part of this build; skipping the OTA metadata")
+        return
     info = state.read(tree)
     api_url = args.api_url or os.environ.get("ZEROWRT_OTA_URL", "")
     metadata = ota.embed(
@@ -167,6 +175,9 @@ def cmd_ota_embed(args: argparse.Namespace) -> None:
 
 def cmd_ota_index(args: argparse.Namespace) -> None:
     tree = Path(args.tree)
+    if not ota.app_present(tree):
+        util.log("luci-app-ota is not part of this build; skipping the OTA index")
+        return
     info = state.read(tree)
     if (not args.repo or not args.tag) and not args.url_base:
         raise util.BuildError("ota index needs --repo/--tag or --url-base")
@@ -184,6 +195,9 @@ def cmd_ota_index(args: argparse.Namespace) -> None:
 
 def cmd_ota_publish(args: argparse.Namespace) -> None:
     tree = Path(args.tree)
+    if not ota.app_present(tree):
+        util.log("luci-app-ota is not part of this build; skipping the OTA download page")
+        return
     info = state.read(tree)
     repo = args.repo or os.environ.get("GITHUB_REPOSITORY", "")
     if not repo:
@@ -311,6 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
     pkg_sub = pkg.add_subparsers(dest="packages_command", required=True)
     pkg_add = pkg_sub.add_parser("add", help="clone Argon, OpenClash, Go/Rust, Docker and OTA")
     _add_tree(pkg_add)
+    pkg_add.add_argument("--device", default=None, help="device profile (default: ZEROWRT_DEVICE)")
     pkg_add.set_defaults(func=cmd_packages_add)
 
     pkg_ota = pkg_sub.add_parser("ota", help="clone only luci-app-ota")

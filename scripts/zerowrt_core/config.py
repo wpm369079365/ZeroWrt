@@ -19,6 +19,8 @@ EXTRA_SELECTIONS = {
     "CONFIG_PACKAGE_luci-i18n-ota-zh-cn": "y",
 }
 
+OTA_SELECTIONS = tuple(EXTRA_SELECTIONS)
+
 REQUIRED_SELECTIONS = [
     "CONFIG_PACKAGE_luci-app-ota=y",
     "CONFIG_PACKAGE_luci-theme-argon=y",
@@ -36,10 +38,27 @@ REQUIRED_SELECTIONS = [
 GCC16_SELECTION = "CONFIG_GCC_USE_VERSION_16=y"
 
 
+def extra_selections(profile: profiles.DeviceProfile) -> dict[str, str]:
+    """Return the selections this pipeline adds on top of the device config.
+
+    Every entry is OTA related, so a source tree that ships no OTA app must not
+    ask for them: ``defconfig`` would drop the flag and the post-defconfig check
+    would abort the build over a package that is intentionally absent.
+    """
+    if profiles.source(profile).ota:
+        return dict(EXTRA_SELECTIONS)
+    return {}
+
+
 def required_selections(profile: profiles.DeviceProfile) -> list[str]:
     """Selections that must survive ``make defconfig`` for this profile."""
-    items = list(REQUIRED_SELECTIONS)
-    if profiles.source(profile).gcc16:
+    source = profiles.source(profile)
+    items = [
+        item
+        for item in REQUIRED_SELECTIONS
+        if source.ota or item.split("=")[0] not in OTA_SELECTIONS
+    ]
+    if source.gcc16:
         items.insert(0, GCC16_SELECTION)
     return items
 
@@ -123,7 +142,7 @@ def render_config(
     target = target_symbol(profile)
     if f"{target}=y" not in text:
         raise util.BuildError(f"device config is missing {target}=y; wrong config for {profile.name}")
-    selections = dict(EXTRA_SELECTIONS)
+    selections = extra_selections(profile)
     if extra:
         selections.update(extra)
     for name, value in selections.items():
@@ -148,7 +167,7 @@ def apply(
     util.header("Writing .config")
     text = render_config(text, profile, extra=extra)
     util.write_text(tree / ".config", text)
-    util.log(f"{source} -> {tree / '.config'} (+{len(EXTRA_SELECTIONS)} pipeline selection(s))")
+    util.log(f"{source} -> {tree / '.config'} (+{len(extra_selections(profile))} pipeline selection(s))")
 
     util.header("Resolving configuration (make defconfig)")
     log_path = tree / "defconfig.log"

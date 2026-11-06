@@ -32,6 +32,16 @@ class ConfigTest(unittest.TestCase):
         self.assertIn("CONFIG_PACKAGE_luci-i18n-ota-zh-cn=y", updated)
         self.assertEqual(updated.count("CONFIG_PACKAGE_luci-app-ota=y"), 1)
 
+    def test_render_skips_ota_for_a_tree_without_the_app(self) -> None:
+        profile = profiles.require("ruijie_rg-x60-new-2410")
+        target = config.target_symbol(profile)
+        updated = config.render_config(f"{target}=y\n", profile)
+        self.assertIn(f"{target}=y", updated)
+        self.assertNotIn("luci-app-ota", updated)
+        self.assertNotIn("luci-i18n-ota", updated)
+        required = config.required_selections(profile)
+        self.assertFalse([item for item in required if "ota" in item])
+
     def test_render_rejects_wrong_device(self) -> None:
         with self.assertRaises(util.BuildError):
             config.render_config("CONFIG_TARGET_mediatek_filogic=y\n", self.profile)

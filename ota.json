@@ -1,0 +1,44 @@
+{
+  "schema": 2,
+  "generator": "zerowrt ota index",
+  "generated": 1793938184,
+  "dist": "ZeroWrt",
+  "devices": {
+    "ruijie,rg-x60-new-mtkuboot": {
+      "version": "20261106",
+      "build_date": 1793932756,
+      "url": "https://github.com/wpm369079365/ZeroWrt/releases/download/ruijie_rg-x60-new/zerowrt-mediatek-filogic-ruijie_rg-x60-new-mtkuboot-squashfs-sysupgrade.bin",
+      "sha256": "5f32bfcfa821bc97a4c8211c0fa53bc164d0ddc946f2a58ffddc54037cf52a04",
+      "size": 59412766,
+      "file": "zerowrt-mediatek-filogic-ruijie_rg-x60-new-mtkuboot-squashfs-sysupgrade.bin",
+      "target": "mediatek/filogic",
+      "device": "ruijie_rg-x60-new-mtkuboot",
+      "changelog": "**ZeroWrt 20261106**\n\nDevice: `ruijie_rg-x60-new-mtkuboot`\n\nTarget: `mediatek/filogic`\n\nBuilt: 2026-11-06 02:39:16 UTC\n\nSource: [chasey-dev/immortalwrt-mt798x-rebase@9f397975c7b4](https://github.com/chasey-dev/immortalwrt-mt798x-rebase/commit/9f397975c7b4)\n\n[Workflow run](https://github.com/wpm369079365/ZeroWrt/actions/runs/42151338310)",
+      "label": "Ruijie RG-X60 New"
+    },
+    "ruijie_rg-x60-new": {
+      "version": "20261106",
+      "build_date": 1793932756,
+      "url": "https://github.com/wpm369079365/ZeroWrt/releases/download/ruijie_rg-x60-new/zerowrt-mediatek-filogic-ruijie_rg-x60-new-mtkuboot-squashfs-sysupgrade.bin",
+      "sha256": "5f32bfcfa821bc97a4c8211c0fa53bc164d0ddc946f2a58ffddc54037cf52a04",
+      "size": 59412766,
+      "file": "zerowrt-mediatek-filogic-ruijie_rg-x60-new-mtkuboot-squashfs-sysupgrade.bin",
+      "target": "mediatek/filogic",
+      "device": "ruijie_rg-x60-new-mtkuboot",
+      "changelog": "**ZeroWrt 20261106**\n\nDevice: `ruijie_rg-x60-new-mtkuboot`\n\nTarget: `mediatek/filogic`\n\nBuilt: 2026-11-06 02:39:16 UTC\n\nSource: [chasey-dev/immortalwrt-mt798x-rebase@9f397975c7b4](https://github.com/chasey-dev/immortalwrt-mt798x-rebase/commit/9f397975c7b4)\n\n[Workflow run](https://github.com/wpm369079365/ZeroWrt/actions/runs/42151338310)",
+      "label": "Ruijie RG-X60 New"
+    },
+    "ruijie_rg-x60-new-mtkuboot": {
+      "version": "20261106",
+      "build_date": 1793932756,
+      "url": "https://github.com/wpm369079365/ZeroWrt/releases/download/ruijie_rg-x60-new/zerowrt-mediatek-filogic-ruijie_rg-x60-new-mtkuboot-squashfs-sysupgrade.bin",
+      "sha256": "5f32bfcfa821bc97a4c8211c0fa53bc164d0ddc946f2a58ffddc54037cf52a04",
+      "size": 59412766,
+      "file": "zerowrt-mediatek-filogic-ruijie_rg-x60-new-mtkuboot-squashfs-sysupgrade.bin",
+      "target": "mediatek/filogic",
+      "device": "ruijie_rg-x60-new-mtkuboot",
+      "changelog": "**ZeroWrt 20261106**\n\nDevice: `ruijie_rg-x60-new-mtkuboot`\n\nTarget: `mediatek/filogic`\n\nBuilt: 2026-11-06 02:39:16 UTC\n\nSource: [chasey-dev/immortalwrt-mt798x-rebase@9f397975c7b4](https://github.com/chasey-dev/immortalwrt-mt798x-rebase/commit/9f397975c7b4)\n\n[Workflow run](https://github.com/wpm369079365/ZeroWrt/actions/runs/42151338310)",
+      "label": "Ruijie RG-X60 New"
+    }
+  }
+}

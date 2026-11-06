@@ -3,7 +3,7 @@
 Everything cloned by this module lives under ``package/new`` (or in the feed
 directory it replaces). Whichever feed ships a package with the same name loses
 it to :func:`prune_feed_conflicts`; a duplicate package makes the buildroot
-pick one silently, which is how the wrong PassWall core or an old Argon theme
+pick one silently, which is how the wrong Clash core or an old Argon theme
 ends up in an image.
 
 The package list itself is not duplicated here: ``configs/ruijie-rg-x60-new.config``
@@ -217,7 +217,6 @@ def add_ota_app(tree: Path) -> Path:
 
 def _validate_layout(new_dir: Path, helloworld: Path) -> None:
     checks = {
-        "package/new/helloworld/luci-app-passwall/Makefile": helloworld / "luci-app-passwall" / "Makefile",
         "package/new/helloworld/luci-app-openclash/Makefile": helloworld / "luci-app-openclash" / "Makefile",
         "package/new/helloworld/luci-theme-argon/Makefile": helloworld / "luci-theme-argon" / "Makefile",
         "package/new/helloworld/luci-app-argon-config/Makefile": helloworld / "luci-app-argon-config" / "Makefile",

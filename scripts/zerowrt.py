@@ -302,7 +302,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pkg = sub.add_parser("packages", help="add external packages")
     pkg_sub = pkg.add_subparsers(dest="packages_command", required=True)
-    pkg_add = pkg_sub.add_parser("add", help="clone Argon, PassWall, OpenClash, Go/Rust, Docker and OTA")
+    pkg_add = pkg_sub.add_parser("add", help="clone Argon, OpenClash, Go/Rust, Docker and OTA")
     _add_tree(pkg_add)
     pkg_add.set_defaults(func=cmd_packages_add)
 

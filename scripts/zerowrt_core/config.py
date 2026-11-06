@@ -23,8 +23,9 @@ REQUIRED_SELECTIONS = [
     "CONFIG_GCC_USE_VERSION_16=y",
     "CONFIG_PACKAGE_luci-app-ota=y",
     "CONFIG_PACKAGE_luci-theme-argon=y",
-    "CONFIG_PACKAGE_luci-app-passwall=y",
     "CONFIG_PACKAGE_luci-app-openclash=y",
+    "CONFIG_PACKAGE_luci-app-vlmcsd=y",
+    "CONFIG_PACKAGE_vlmcsd=y",
     "CONFIG_PACKAGE_bash=y",
     "CONFIG_PACKAGE_ttyd=y",
 ]

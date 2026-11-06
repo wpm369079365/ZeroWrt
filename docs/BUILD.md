@@ -56,7 +56,7 @@
    - 给 xl2tpd 加 `-std=gnu17`，给 bash 加 `no-lto`；
    - 全部做反向检查，重复运行是 no-op。
 10. **config apply**：复制设备配置，追加 `luci-app-ota` 与中文语言包，
-    `make defconfig`，校验 target、OTA、Argon、PassWall、OpenClash、bash、ttyd。
+    `make defconfig`，校验 target、OTA、Argon、OpenClash、vlmcsd、bash、ttyd。
 11. **ota embed**：写 `/etc/ota/build.json`、`version.date`、首次启动
     `/etc/uci-defaults/90-luci-app-ota`。
 12. **cache restore**（可选）：从 `toolchain` Release 恢复构建缓存。

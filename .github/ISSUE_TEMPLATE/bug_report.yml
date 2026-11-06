@@ -42,7 +42,8 @@ body:
         - 在线升级（luci-app-ota）
         - 网络（有线 / LAN / 拨号）
         - 无线（Wi-Fi）
-        - PassWall / OpenClash
+        - OpenClash / HomeProxy
+        - KMS 激活（vlmcsd）
         - mosdns
         - LuCI 界面 / Argon 主题
         - 其他

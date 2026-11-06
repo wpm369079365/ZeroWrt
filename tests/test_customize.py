@@ -157,6 +157,51 @@ class CustomizeTest(unittest.TestCase):
             (self.tree / "package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc").exists()
         )
 
+    def _write_shell_wifi(self) -> Path:
+        """Replace the 25.12 ucode front end with the 24.10 shell driver."""
+        (self.tree / "package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc").unlink()
+        relative = "package/mtk/applications/mtwifi-cfg/files/mtwifi.sh"
+        self._write(
+            relative,
+            "#!/bin/sh\n"
+            'append DRIVERS "mtwifi"\n'
+            "\n"
+            "detect_mtwifi() {\n"
+            '\tif [ -d "/sys/module/mt_wifi" ]; then\n'
+            "\t\t\t\t\tssid=\"ImmortalWrt-2.4G\"\n"
+            "\t\t\t\telse\n"
+            "\t\t\t\t\tssid=\"ImmortalWrt-5G\"\n"
+            "\t\t\t\tfi\n"
+            "\t\t\t\tuci -q batch <<-EOF\n"
+            "\t\t\t\t\tset wireless.${dev}=wifi-device\n"
+            "\t\t\t\t\tset wireless.default_${dev}.ssid=${ssid}\n"
+            "\t\t\t\t\tset wireless.default_${dev}.encryption=none\n"
+            "EOF\n"
+            "\tfi\n"
+            "}\n",
+        )
+        return self.tree / relative
+
+    def test_wifi_defaults_from_the_2410_shell_driver(self) -> None:
+        path = self._write_shell_wifi()
+        self._apply()
+        wifi = path.read_text()
+        self.assertIn('ssid="ZeroWrt-2.4G"', wifi)
+        self.assertIn('ssid="ZeroWrt-5G"', wifi)
+        self.assertIn("encryption=psk2", wifi)
+        self.assertIn("set wireless.default_${dev}.key=${MTWIFI_KEY}", wifi)
+        self.assertIn("MTWIFI_KEY='1234567890'", wifi)
+        self.assertNotIn("ImmortalWrt-", wifi)
+        self.assertNotIn("encryption=none", wifi)
+
+    def test_shell_wifi_keeps_password_metacharacters_literal(self) -> None:
+        path = self._write_shell_wifi()
+        self._apply(BuildSettings(wifi_name="Lab", wifi_password="pa$$w0rd!"))
+        wifi = path.read_text()
+        self.assertIn('ssid="Lab-5G"', wifi)
+        # Single quotes keep the dollar signs from being expanded at boot.
+        self.assertIn("MTWIFI_KEY='pa$$w0rd!'", wifi)
+
     def test_wrong_default_ssid_fails(self) -> None:
         path = self.tree / "package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc"
         path.write_text('return { ssid: "Something-2.4G" };\n', encoding="utf-8")

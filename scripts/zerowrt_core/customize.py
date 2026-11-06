@@ -28,6 +28,9 @@ TTYD_CONFIG = Path("feeds/packages/utils/ttyd/files/ttyd.config")
 TTYD_INIT = Path("feeds/packages/utils/ttyd/files/ttyd.init")
 TTYD_MENU = Path("feeds/luci/applications/luci-app-ttyd/root/usr/share/luci/menu.d/luci-app-ttyd.json")
 MTWIFI = Path("package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc")
+# 24.10 has no ucode front end; the first-boot ``wireless`` config is assembled
+# by this shell driver instead, so its defaults are the ones worth patching.
+MTWIFI_SHELL = Path("package/mtk/applications/mtwifi-cfg/files/mtwifi.sh")
 
 IPAD_RE = re.compile(r'ipad=\$\{ipaddr:-"[^"]*"\}')
 HOSTNAME_RE = re.compile(r"hostname='(?:LEDE|OpenWrt|ImmortalWrt|ZeroWrt)'")
@@ -286,23 +289,40 @@ def patch_ttyd(tree: Path) -> None:
         util.log(f"ttyd customisations applied ({changed} file(s))")
 
 
+def _wifi_defaults_file(tree: Path) -> Path | None:
+    """Return the tree-relative file that seeds the factory WiFi defaults.
+
+    25.12 patches the ucode front end; 24.10 only has the shell driver that
+    builds ``wireless`` from a heredoc on first boot. Both are patchable, the
+    anchors just differ.
+    """
+    for relative in (MTWIFI, MTWIFI_SHELL):
+        if (Path(tree) / relative).is_file():
+            return relative
+    return None
+
+
 def patch_wifi(tree: Path, settings: BuildSettings) -> None:
     tree = _tree(tree)
-    path = tree / MTWIFI
-    # The ucode WiFi front end only exists on the 25.12 tree. 24.10 still ships
-    # the Lua one (package/mtk/applications/mtwifi-cfg), which builds its default
-    # SSID from the hostname at first boot instead of reading a file we can patch.
-    # The image keeps whatever upstream generates; the SSID is set in LuCI.
-    if not path.is_file():
+    relative = _wifi_defaults_file(tree)
+    # Neither front end present means this is a source tree we do not know; the
+    # image keeps whatever upstream generates and the SSID is set in LuCI.
+    if relative is None:
         util.warn(
-            f"{MTWIFI} is not in this tree; leaving the default WiFi configuration alone "
-            "(set the SSID and password in LuCI after flashing)"
+            f"neither {MTWIFI} nor {MTWIFI_SHELL} is in this tree; leaving the default "
+            "WiFi configuration alone (set the SSID and password in LuCI after flashing)"
         )
         return
     util.header("Patching default WiFi configuration")
 
-    text = util.read_text(path)
+    path = tree / relative
     expected = {band: settings.ssid(band) for band in ("2g", "5g", "6g")}
+    if relative == MTWIFI_SHELL:
+        _patch_wifi_shell(path, expected, settings.wifi_password)
+        util.log(f"SSIDs: {expected['2g']} / {expected['5g']}")
+        return
+
+    text = util.read_text(path)
     labels = {"2.4G": "2g", "5G": "5g", "6G": "6g"}
     for label, band in labels.items():
         text, count = re.subn(
@@ -352,6 +372,61 @@ def patch_wifi(tree: Path, settings: BuildSettings) -> None:
     if "ImmortalWrt-" in final:
         raise util.BuildError(f"{MTWIFI}: an upstream SSID is still present")
     util.log(f"SSIDs: {expected['2g']} / {expected['5g']} / {expected['6g']}")
+
+
+def _patch_wifi_shell(path: Path, expected: dict[str, str], key: str) -> None:
+    """Patch the 24.10 ``mtwifi.sh`` driver defaults.
+
+    That script assembles the first-boot ``wireless`` config from a heredoc, so
+    the SSID is a plain shell assignment and the interface key is never written
+    at all -- upstream ships an open network. The key goes into a single-quoted
+    variable at the top of the file: the heredoc expands it at boot, and quoting
+    keeps a ``$`` or a backtick in the password literal.
+    """
+    text = util.read_text(path)
+    labels = {"2.4G": "2g", "5G": "5g", "6G": "6g"}
+    for label, band in labels.items():
+        text, count = re.subn(
+            rf'ssid="ImmortalWrt-{re.escape(label)}"',
+            f'ssid="{expected[band]}"',
+            text,
+        )
+        if count:
+            continue
+        if f'ssid="{expected[band]}"' in text:
+            continue
+        # The RG-X60 is dual-band, so a missing 6 GHz default is not fatal.
+        if band == "6g":
+            continue
+        raise util.BuildError(f"{path}: default {label} SSID was not found")
+
+    anchor = 'append DRIVERS "mtwifi"'
+    if f"MTWIFI_KEY='{key}'" not in text:
+        if anchor not in text:
+            raise util.BuildError(f'{path}: "{anchor}" was not found')
+        text = text.replace(anchor, f"{anchor}\n\nMTWIFI_KEY='{key}'", 1)
+
+    pattern = re.compile(
+        r"^(?P<indent>[ \t]*)set wireless\.default_\$\{dev\}\.encryption=none\s*$",
+        re.M,
+    )
+    replacement = (
+        r"\g<indent>set wireless.default_${dev}.encryption=psk2\n"
+        r"\g<indent>set wireless.default_${dev}.key=${MTWIFI_KEY}"
+    )
+    text, count = pattern.subn(replacement, text, count=1)
+    if count == 0 and "encryption=psk2" not in text:
+        raise util.BuildError(f"{path}: the open default WiFi network was not found")
+    util.write_text(path, text)
+
+    final = util.read_text(path)
+    for band in ("2g", "5g"):
+        if f'ssid="{expected[band]}"' not in final:
+            raise util.BuildError(f"{path}: SSID {expected[band]} was not applied")
+    if "encryption=psk2" not in final or "${MTWIFI_KEY}" not in final:
+        raise util.BuildError(f"{path}: WPA2 key was not applied")
+    if "ImmortalWrt-" in final:
+        raise util.BuildError(f"{path}: an upstream SSID is still present")
 
 
 def apply(tree: Path, settings: BuildSettings, *, assets: Path, repo_root: Path) -> None:
@@ -428,13 +503,17 @@ def verify(tree: Path, settings: BuildSettings, *, assets: Path) -> None:
     if ttyd.exists() and "option command '/bin/login -f root'" not in util.read_text(ttyd):
         problems.append("ttyd auto login is not configured")
 
-    wifi_path = tree / MTWIFI
-    if wifi_path.is_file():
-        wifi = util.read_text(wifi_path)
+    relative = _wifi_defaults_file(tree)
+    if relative is not None:
+        wifi = util.read_text(tree / relative)
+        shell = relative == MTWIFI_SHELL
         for band in ("2g", "5g"):
-            if f'ssid: "{settings.ssid(band)}"' not in wifi:
-                problems.append(f"WiFi SSID {settings.ssid(band)} is missing")
-        if '"encryption": "psk2"' not in wifi:
+            ssid = settings.ssid(band)
+            needle = f'ssid="{ssid}"' if shell else f'ssid: "{ssid}"'
+            if needle not in wifi:
+                problems.append(f"WiFi SSID {ssid} is missing")
+        marker = "encryption=psk2" if shell else '"encryption": "psk2"'
+        if marker not in wifi:
             problems.append("WiFi encryption is not WPA2")
 
     if problems:

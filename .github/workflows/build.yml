@@ -10,6 +10,7 @@ on:
         default: ruijie_rg-x60-new
         options:
           - ruijie_rg-x60-new
+          - ruijie_rg-x60-new-2410
       lan_ip:
         description: "LAN IP (management address)"
         required: true
@@ -121,7 +122,10 @@ jobs:
             --assets "$GITHUB_WORKSPACE/assets"
 
       - name: Apply patches
-        run: python3 scripts/zerowrt.py patches apply --tree "$ZEROWRT_SOURCE_DIR"
+        run: |
+          python3 scripts/zerowrt.py patches apply \
+            --tree "$ZEROWRT_SOURCE_DIR" \
+            --device "$ZEROWRT_DEVICE"
 
       - name: Apply device .config
         run: |

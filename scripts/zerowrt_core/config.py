@@ -20,7 +20,6 @@ EXTRA_SELECTIONS = {
 }
 
 REQUIRED_SELECTIONS = [
-    "CONFIG_GCC_USE_VERSION_16=y",
     "CONFIG_PACKAGE_luci-app-ota=y",
     "CONFIG_PACKAGE_luci-theme-argon=y",
     "CONFIG_PACKAGE_luci-app-openclash=y",
@@ -31,6 +30,18 @@ REQUIRED_SELECTIONS = [
     "CONFIG_PACKAGE_bash=y",
     "CONFIG_PACKAGE_ttyd=y",
 ]
+
+# Only the 25.12 tree ships a GCC 16 toolchain; asking for it on 24.10 fails
+# defconfig because the symbol does not exist there.
+GCC16_SELECTION = "CONFIG_GCC_USE_VERSION_16=y"
+
+
+def required_selections(profile: profiles.DeviceProfile) -> list[str]:
+    """Selections that must survive ``make defconfig`` for this profile."""
+    items = list(REQUIRED_SELECTIONS)
+    if profiles.source(profile).gcc16:
+        items.insert(0, GCC16_SELECTION)
+    return items
 
 DEVICE_BLOCK_RE = re.compile(r"^define\s+Device/(?P<name>\S+)\s*$", re.M)
 
@@ -144,7 +155,7 @@ def apply(
     util.run(["make", "defconfig"], cwd=tree, log_path=log_path, check=True)
 
     resolved = util.read_text(tree / ".config")
-    missing = [item for item in [f"{target}=y", *REQUIRED_SELECTIONS] if item not in resolved]
+    missing = [item for item in [f"{target}=y", *required_selections(profile)] if item not in resolved]
     if missing:
         tail = "\n".join(util.read_text(log_path).splitlines()[-60:]) if log_path.exists() else ""
         raise util.BuildError(

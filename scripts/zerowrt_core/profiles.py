@@ -21,12 +21,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 @dataclass(frozen=True)
 class Source:
-    """An upstream build tree."""
+    """An upstream build tree.
+
+    ``gcc16`` and ``luci_patches`` describe what the tree is: the 25.12 rebase
+    ships GCC 16 and a LuCI feed the five patches were refreshed against, while
+    the 24.10 tree is GCC 14 and has a different LuCI. Both flags gate work that
+    would otherwise fail on the tree it does not belong to.
+    """
 
     key: str
     repo: str
     ref: str
     label: str
+    gcc16: bool = True
+    luci_patches: bool = True
 
 
 @dataclass(frozen=True)
@@ -56,6 +64,19 @@ SOURCES: dict[str, Source] = {
         ref="25.12",
         label="ImmortalWrt 25.12 (MT798x rebase, MTK wireless)",
     ),
+    # The 24.10 tree carries the same MTK wireless stack (mt_wifi 7.6.6.1) on a
+    # 6.6 kernel and already ships a ruijie_rg-x60-new device whose partition
+    # map and sysupgrade format match the 25.12 mtkuboot layout, so images are
+    # interchangeable. It is GCC 14 and its LuCI feed is a different vintage,
+    # hence both capability flags off.
+    "immortalwrt-mtk-2410": Source(
+        key="immortalwrt-mtk-2410",
+        repo="wpm369079365/immortalwrt-mt798x-6.6",
+        ref="openwrt-24.10-6.6",
+        label="ImmortalWrt 24.10 (MT798x 6.6, MTK wireless)",
+        gcc16=False,
+        luci_patches=False,
+    ),
 }
 
 PROFILES: dict[str, DeviceProfile] = {
@@ -70,6 +91,22 @@ PROFILES: dict[str, DeviceProfile] = {
         vendor="Ruijie",
         model="RG-X60 New",
         layout="MTK U-Boot layout (mtkuboot)",
+    ),
+    # Same hardware, built from the 24.10 tree. The upstream device name has no
+    # ``-mtkuboot`` suffix there, but the partition map (UBI at 0x680000, 107 MB)
+    # and the sysupgrade-tar image format are identical, so the two images are
+    # interchangeable on the same flash layout.
+    "ruijie_rg-x60-new-2410": DeviceProfile(
+        name="ruijie_rg-x60-new-2410",
+        config="configs/ruijie-rg-x60-new-2410.config",
+        source="immortalwrt-mtk-2410",
+        board="mediatek",
+        subtarget="filogic",
+        device="ruijie_rg-x60-new",
+        dt_model="ruijie,rg-x60-new",
+        vendor="Ruijie",
+        model="RG-X60 New",
+        layout="MTK U-Boot layout (sysupgrade-tar)",
     ),
 }
 

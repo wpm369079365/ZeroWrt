@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from zerowrt_core import patches, util
+from zerowrt_core import patches, profiles, util
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 
@@ -56,6 +56,25 @@ class PatchApplyTest(unittest.TestCase):
         text = (SCRIPTS / patches.LUCI_PATCHES[0]).read_text(encoding="utf-8")
         self.assertIn("github.com/MinimaxFlora/ZeroWrt", text)
         self.assertNotIn("OpenWrt_MediaTek_Builder", text)
+
+
+class PatchPlanTest(unittest.TestCase):
+    def test_the_2512_tree_gets_every_group(self) -> None:
+        groups = patches.plan(profiles.require("ruijie_rg-x60-new"))
+        self.assertEqual(groups["luci"], patches.LUCI_PATCHES)
+        self.assertEqual(groups["source"], patches.SOURCE_PATCHES)
+        self.assertTrue(groups["gcc16"])
+
+    def test_the_2410_tree_skips_gcc16_and_luci_patches(self) -> None:
+        groups = patches.plan(profiles.require("ruijie_rg-x60-new-2410"))
+        self.assertEqual(groups["luci"], [])
+        self.assertEqual(groups["source"], [])
+        self.assertFalse(groups["gcc16"])
+
+    def test_no_profile_keeps_the_historical_behaviour(self) -> None:
+        groups = patches.plan(None)
+        self.assertEqual(groups["luci"], patches.LUCI_PATCHES)
+        self.assertTrue(groups["gcc16"])
 
 
 if __name__ == "__main__":

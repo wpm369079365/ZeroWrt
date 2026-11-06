@@ -24,6 +24,7 @@ from zerowrt_core import (  # noqa: E402
     ota,
     packages,
     patches,
+    profiles,
     settings,
     source,
     state,
@@ -125,7 +126,12 @@ def cmd_packages_ota(args: argparse.Namespace) -> None:
 
 
 def cmd_patches_apply(args: argparse.Namespace) -> None:
-    patches.apply_all(Path(args.tree), scripts=Path(args.scripts))
+    device = args.device or settings.BuildSettings.from_environment().device
+    patches.apply_all(
+        Path(args.tree),
+        scripts=Path(args.scripts),
+        profile=profiles.require(device),
+    )
 
 
 def cmd_config_apply(args: argparse.Namespace) -> None:
@@ -297,6 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
     patches_sub = patches_cmd.add_subparsers(dest="patches_command", required=True)
     patches_apply = patches_sub.add_parser("apply", help="apply all patches and verify them")
     _add_tree(patches_apply)
+    patches_apply.add_argument("--device", default=None, help="device profile (default: ZEROWRT_DEVICE)")
     patches_apply.add_argument("--scripts", default=str(REPO_ROOT / "scripts"))
     patches_apply.set_defaults(func=cmd_patches_apply)
 

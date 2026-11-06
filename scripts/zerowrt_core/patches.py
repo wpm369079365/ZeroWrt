@@ -15,7 +15,7 @@ import re
 import shutil
 from pathlib import Path
 
-from . import util
+from . import profiles, util
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 
@@ -38,6 +38,30 @@ def _patch_path(name: str, scripts: Path) -> Path:
     if not path.is_file():
         raise util.BuildError(f"patch file not found: {path}")
     return path
+
+
+def plan(profile: profiles.DeviceProfile | None) -> dict[str, list[str] | bool]:
+    """Which patch groups belong to the tree behind *profile*.
+
+    The five LuCI patches are refreshed against the 25.12 feed and the three
+    toolchain patches only make sense with GCC 16. On the 24.10 tree both groups
+    are skipped instead of failing the build, because a patch that cannot apply
+    would abort it.
+    """
+    if profile is None:
+        return {
+            "luci": list(LUCI_PATCHES),
+            "source": list(SOURCE_PATCHES),
+            "gcc16": True,
+        }
+    source = profiles.source(profile)
+    if source.gcc16:
+        return {
+            "luci": list(LUCI_PATCHES) if source.luci_patches else [],
+            "source": list(SOURCE_PATCHES),
+            "gcc16": True,
+        }
+    return {"luci": [], "source": [], "gcc16": False}
 
 
 def _git(directory: Path) -> bool:
@@ -143,45 +167,58 @@ def _patch_bash(tree: Path) -> None:
     util.log("bash: PKG_BUILD_FLAGS:=no-lto")
 
 
-def apply_all(tree: Path, *, scripts: Path | None = None) -> None:
+def apply_all(tree: Path, *, scripts: Path | None = None, profile: profiles.DeviceProfile | None = None) -> None:
     tree = Path(tree)
     scripts = Path(scripts) if scripts else SCRIPTS_DIR
+    groups = plan(profile)
 
-    luci = tree / "feeds" / "luci"
-    if not luci.exists():
-        raise util.BuildError(f"LuCI feed is missing: {luci}")
-    util.header("Applying LuCI patches")
-    for name in LUCI_PATCHES:
-        apply_patch(luci, _patch_path(name, scripts))
+    if groups["luci"]:
+        luci = tree / "feeds" / "luci"
+        if not luci.exists():
+            raise util.BuildError(f"LuCI feed is missing: {luci}")
+        util.header("Applying LuCI patches")
+        for name in groups["luci"]:
+            apply_patch(luci, _patch_path(name, scripts))
+    else:
+        util.header("Skipping LuCI patches")
+        util.log("this tree's LuCI feed is not the one the patches target")
 
-    util.header("Applying source patches")
-    for name in SOURCE_PATCHES:
-        apply_patch(tree, _patch_path(name, scripts))
+    if groups["source"]:
+        util.header("Applying source patches")
+        for name in groups["source"]:
+            apply_patch(tree, _patch_path(name, scripts))
+    else:
+        util.header("Skipping toolchain patches")
+        util.log("this tree does not use the GCC 16 toolchain")
 
     util.header("Installing package patches")
-    _copy_patch(
-        _patch_path(ELFUTILS_PATCH, scripts),
-        tree / "package" / "libs" / "elfutils" / "patches" / ELFUTILS_PATCH,
-    )
-    _copy_patch(
-        _patch_path(LIBWEBSOCKETS_PATCH, scripts),
-        tree / "feeds" / "packages" / "libs" / "libwebsockets" / "patches" / LIBWEBSOCKETS_PATCH,
-    )
-    _patch_xl2tpd(tree)
-    _patch_bash(tree)
+    if groups["gcc16"]:
+        _copy_patch(
+            _patch_path(ELFUTILS_PATCH, scripts),
+            tree / "package" / "libs" / "elfutils" / "patches" / ELFUTILS_PATCH,
+        )
+        _copy_patch(
+            _patch_path(LIBWEBSOCKETS_PATCH, scripts),
+            tree / "feeds" / "packages" / "libs" / "libwebsockets" / "patches" / LIBWEBSOCKETS_PATCH,
+        )
+        _patch_xl2tpd(tree)
+        _patch_bash(tree)
+    else:
+        util.log("no package patches for this tree")
 
-    verify(tree, scripts=scripts)
+    verify(tree, scripts=scripts, profile=profile)
 
 
-def verify(tree: Path, *, scripts: Path | None = None) -> None:
-    """Check that every patch is present in the tree after ``apply_all``."""
+def verify(tree: Path, *, scripts: Path | None = None, profile: profiles.DeviceProfile | None = None) -> None:
+    """Check that every patch selected by :func:`plan` is present in the tree."""
     tree = Path(tree)
     scripts = Path(scripts) if scripts else SCRIPTS_DIR
+    groups = plan(profile)
     util.header("Verifying patches")
     problems: list[str] = []
 
     luci = tree / "feeds" / "luci"
-    for name in LUCI_PATCHES:
+    for name in groups["luci"]:
         code, _ = util.run(
             ["git", "-C", str(luci), "apply", "--reverse", "--check", str(Path(scripts) / name)],
             capture=True,
@@ -191,7 +228,7 @@ def verify(tree: Path, *, scripts: Path | None = None) -> None:
         if code != 0:
             problems.append(f"not applied in feeds/luci: {name}")
 
-    for name in SOURCE_PATCHES:
+    for name in groups["source"]:
         code, _ = util.run(
             ["git", "-C", str(tree), "apply", "--reverse", "--check", str(Path(scripts) / name)],
             capture=True,
@@ -201,20 +238,21 @@ def verify(tree: Path, *, scripts: Path | None = None) -> None:
         if code != 0:
             problems.append(f"not applied in the source tree: {name}")
 
-    for relative in (
-        f"package/libs/elfutils/patches/{ELFUTILS_PATCH}",
-        f"feeds/packages/libs/libwebsockets/patches/{LIBWEBSOCKETS_PATCH}",
-    ):
-        if not (tree / relative).is_file():
-            problems.append(f"missing package patch: {relative}")
+    if groups["gcc16"]:
+        for relative in (
+            f"package/libs/elfutils/patches/{ELFUTILS_PATCH}",
+            f"feeds/packages/libs/libwebsockets/patches/{LIBWEBSOCKETS_PATCH}",
+        ):
+            if not (tree / relative).is_file():
+                problems.append(f"missing package patch: {relative}")
 
-    xl2tpd = tree / "feeds" / "packages" / "net" / "xl2tpd" / "Makefile"
-    if xl2tpd.exists() and "TARGET_CFLAGS += -std=gnu17" not in util.read_text(xl2tpd):
-        problems.append("xl2tpd does not build with -std=gnu17")
+        xl2tpd = tree / "feeds" / "packages" / "net" / "xl2tpd" / "Makefile"
+        if xl2tpd.exists() and "TARGET_CFLAGS += -std=gnu17" not in util.read_text(xl2tpd):
+            problems.append("xl2tpd does not build with -std=gnu17")
 
-    bash = tree / "feeds" / "packages" / "utils" / "bash" / "Makefile"
-    if bash.exists() and "no-lto" not in util.read_text(bash):
-        problems.append("bash does not build with no-lto")
+        bash = tree / "feeds" / "packages" / "utils" / "bash" / "Makefile"
+        if bash.exists() and "no-lto" not in util.read_text(bash):
+            problems.append("bash does not build with no-lto")
 
     if problems:
         raise util.BuildError("patch verification failed:\n  - " + "\n  - ".join(problems))

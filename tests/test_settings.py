@@ -55,8 +55,8 @@ class SettingsTest(unittest.TestCase):
 
 
 class ProfilesTest(unittest.TestCase):
-    def test_only_the_rg_x60_is_supported(self) -> None:
-        self.assertEqual(profiles.names(), ["ruijie_rg-x60-new"])
+    def test_the_rg_x60_profiles_are_supported(self) -> None:
+        self.assertEqual(profiles.names(), ["ruijie_rg-x60-new", "ruijie_rg-x60-new-2410"])
         profile = profiles.require("ruijie_rg-x60-new")
         self.assertEqual(profile.device, "ruijie_rg-x60-new-mtkuboot")
         self.assertEqual(profile.config, "configs/ruijie-rg-x60-new.config")
@@ -69,6 +69,22 @@ class ProfilesTest(unittest.TestCase):
         source = profiles.source(profiles.require("ruijie_rg-x60-new"))
         self.assertEqual(source.repo, "chasey-dev/immortalwrt-mt798x-rebase")
         self.assertEqual(source.ref, "25.12")
+        self.assertTrue(source.gcc16)
+        self.assertTrue(source.luci_patches)
+
+    def test_the_2410_profile_uses_the_plain_device_name(self) -> None:
+        profile = profiles.require("ruijie_rg-x60-new-2410")
+        self.assertEqual(profile.device, "ruijie_rg-x60-new")
+        self.assertEqual(profile.dt_model, "ruijie,rg-x60-new")
+        self.assertEqual(profile.config, "configs/ruijie-rg-x60-new-2410.config")
+        self.assertTrue((profiles.PROJECT_ROOT / profile.config).is_file())
+
+    def test_the_2410_source_disables_gcc16_and_luci_patches(self) -> None:
+        source = profiles.source(profiles.require("ruijie_rg-x60-new-2410"))
+        self.assertEqual(source.repo, "wpm369079365/immortalwrt-mt798x-6.6")
+        self.assertEqual(source.ref, "openwrt-24.10-6.6")
+        self.assertFalse(source.gcc16)
+        self.assertFalse(source.luci_patches)
 
 
 if __name__ == "__main__":

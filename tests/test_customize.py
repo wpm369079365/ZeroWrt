@@ -149,10 +149,13 @@ class CustomizeTest(unittest.TestCase):
         self.assertIn('ssid: "Lab-5G"', wifi)
         self.assertIn('"key": "abcdefgh"', wifi)
 
-    def test_missing_mtwifi_fails(self) -> None:
+    def test_missing_mtwifi_is_skipped(self) -> None:
+        """The 24.10 tree ships the Lua WiFi front end, so this file is absent."""
         (self.tree / "package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc").unlink()
-        with self.assertRaises(util.BuildError):
-            self._apply()
+        self._apply()
+        self.assertFalse(
+            (self.tree / "package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc").exists()
+        )
 
     def test_wrong_default_ssid_fails(self) -> None:
         path = self.tree / "package/mtk/applications/mtwifi-cfg-ucode/files/lib/wifi/mtwifi.uc"

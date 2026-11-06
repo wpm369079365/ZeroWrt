@@ -289,7 +289,16 @@ def patch_ttyd(tree: Path) -> None:
 def patch_wifi(tree: Path, settings: BuildSettings) -> None:
     tree = _tree(tree)
     path = tree / MTWIFI
-    _require(path)
+    # The ucode WiFi front end only exists on the 25.12 tree. 24.10 still ships
+    # the Lua one (package/mtk/applications/mtwifi-cfg), which builds its default
+    # SSID from the hostname at first boot instead of reading a file we can patch.
+    # The image keeps whatever upstream generates; the SSID is set in LuCI.
+    if not path.is_file():
+        util.warn(
+            f"{MTWIFI} is not in this tree; leaving the default WiFi configuration alone "
+            "(set the SSID and password in LuCI after flashing)"
+        )
+        return
     util.header("Patching default WiFi configuration")
 
     text = util.read_text(path)
@@ -419,12 +428,14 @@ def verify(tree: Path, settings: BuildSettings, *, assets: Path) -> None:
     if ttyd.exists() and "option command '/bin/login -f root'" not in util.read_text(ttyd):
         problems.append("ttyd auto login is not configured")
 
-    wifi = util.read_text(tree / MTWIFI)
-    for band in ("2g", "5g"):
-        if f'ssid: "{settings.ssid(band)}"' not in wifi:
-            problems.append(f"WiFi SSID {settings.ssid(band)} is missing")
-    if '"encryption": "psk2"' not in wifi:
-        problems.append("WiFi encryption is not WPA2")
+    wifi_path = tree / MTWIFI
+    if wifi_path.is_file():
+        wifi = util.read_text(wifi_path)
+        for band in ("2g", "5g"):
+            if f'ssid: "{settings.ssid(band)}"' not in wifi:
+                problems.append(f"WiFi SSID {settings.ssid(band)} is missing")
+        if '"encryption": "psk2"' not in wifi:
+            problems.append("WiFi encryption is not WPA2")
 
     if problems:
         raise util.BuildError("customisation failed:\n  - " + "\n  - ".join(problems))

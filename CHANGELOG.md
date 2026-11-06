@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Disable `SING_BOX_BUILD_NAIVE_OUTBOUND` in the device config. The `full`
+  sing-box variant defaults this to `y` on aarch64, but `libcronet` is not part
+  of the 25.12 feed any more, so the link step aborted the whole build with
+  `ld.bfd: cannot find -lcronet`.
+
 ## 2.0.0 — 2026-11-02
 
 Python rewrite of the ZeroWrt/MediaTek builder pipeline.

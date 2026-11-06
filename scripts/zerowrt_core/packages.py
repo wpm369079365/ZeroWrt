@@ -44,6 +44,14 @@ DOCKER_REPOS = {
 OTA_REPO = "MinimaxFlora/luci-app-ota"
 OTA_REF = "main"
 
+# AList's LuCI package was archived in June 2025 and points at OpenList as its
+# successor. The OpenList repository carries the Go service and the LuCI front
+# end in two sibling directories, which is the layout the buildroot wants one
+# level below ``package/new``. The front end is built from the *lite* dist so
+# the image does not grow by another ~20 MiB of static assets.
+OPENLIST_REPO = "sbwml/luci-app-openlist2"
+OPENLIST_REF = "main"
+
 BUILD_PACKAGE_RE = re.compile(r"call BuildPackage,([^)\n]+)\)")
 PKG_NAME_RE = re.compile(r"^PKG_NAME\s*:?=\s*(\S+)", re.M)
 
@@ -194,6 +202,7 @@ def add_external_packages(tree: Path) -> None:
         _replace_feed_dir(tree, Path("feeds/packages/utils") / name, repo, ref)
 
     add_ota_app(tree)
+    add_openlist(tree)
 
     _validate_layout(new_dir, helloworld)
     # The feeds were installed before this step; prune what package/new owns so
@@ -215,12 +224,31 @@ def add_ota_app(tree: Path) -> Path:
     return dest
 
 
+def add_openlist(tree: Path) -> Path:
+    """Clone OpenList into ``package/new/openlist``.
+
+    The checkout holds ``openlist2`` (the Go service) and ``luci-app-openlist2``
+    (its front end) as siblings, so a single clone feeds both Makefiles.
+    """
+    dest = Path(tree) / "package" / "new" / "openlist"
+    _clone(OPENLIST_REPO, OPENLIST_REF, dest)
+    for name in ("openlist2", "luci-app-openlist2"):
+        if not (dest / name / "Makefile").exists():
+            raise util.BuildError(f"openlist checkout is missing {name}/Makefile: {dest}")
+    util.log("OpenList added: package/new/openlist (openlist2 + luci-app-openlist2)")
+    return dest
+
+
 def _validate_layout(new_dir: Path, helloworld: Path) -> None:
     checks = {
         "package/new/helloworld/luci-app-openclash/Makefile": helloworld / "luci-app-openclash" / "Makefile",
         "package/new/helloworld/luci-theme-argon/Makefile": helloworld / "luci-theme-argon" / "Makefile",
         "package/new/helloworld/luci-app-argon-config/Makefile": helloworld / "luci-app-argon-config" / "Makefile",
         "package/new/helloworld/v2ray-geodata/Makefile": helloworld / "v2ray-geodata" / "Makefile",
+        "package/new/openlist/openlist2/Makefile": new_dir / "openlist" / "openlist2" / "Makefile",
+        "package/new/openlist/luci-app-openlist2/Makefile": (
+            new_dir / "openlist" / "luci-app-openlist2" / "Makefile"
+        ),
         "package/new/luci-app-ota/Makefile": new_dir / "luci-app-ota" / "Makefile",
     }
     missing = [name for name, path in checks.items() if not path.exists()]

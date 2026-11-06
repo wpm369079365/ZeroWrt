@@ -45,6 +45,8 @@
    - `sbwml/packages_lang_rust`；
    - `luci-app-dockerman` + Docker 四个包（默认配置未选中，保留）；
    - `MinimaxFlora/luci-app-ota` → `package/new/luci-app-ota`；
+   - `sbwml/luci-app-openlist2` → `package/new/openlist`（`openlist2` 服务端 +
+     `luci-app-openlist2` 前端，取代已存档的 AList）；
    - 扫描 `package/new` 的 `PKG_NAME`/`BuildPackage`，删除 `feeds/` 与
      `package/feeds/` 里同名包。
 8. **source customize**：版本、发行字符串、IP、主机名、banner、root 密码、
@@ -56,7 +58,7 @@
    - 给 xl2tpd 加 `-std=gnu17`，给 bash 加 `no-lto`；
    - 全部做反向检查，重复运行是 no-op。
 10. **config apply**：复制设备配置，追加 `luci-app-ota` 与中文语言包，
-    `make defconfig`，校验 target、OTA、Argon、OpenClash、vlmcsd、bash、ttyd。
+    `make defconfig`，校验 target、OTA、Argon、OpenClash、OpenList、vlmcsd、bash、ttyd。
 11. **ota embed**：写 `/etc/ota/build.json`、`version.date`、首次启动
     `/etc/uci-defaults/90-luci-app-ota`。
 12. **cache restore**（可选）：从 `toolchain` Release 恢复构建缓存。

@@ -12,6 +12,10 @@
   router can serve KMS activation for Windows and Office clients on the LAN.
   Both packages are asserted in `REQUIRED_SELECTIONS`, so a silent `defconfig`
   drop now fails the build instead of shipping an image without KMS.
+- Add `openlist2` and `luci-app-openlist2`. The AList LuCI package was archived
+  in June 2025 and now points at OpenList as its successor, so the image ships
+  the OpenList service plus its front end. It builds from source against the
+  lite front-end dist to keep the image as small as possible.
 
 ## 2.0.0 — 2026-11-02
 
